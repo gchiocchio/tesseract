@@ -16,13 +16,23 @@
 #
 # USAGE: source tesstrain_utils.sh
 
-if [ "$(uname)" == "Darwin" ];then
+if [ -n "$BASH_VERSION" ];then
+  set -u  # comment in case of "unbound variable" error or fix the code
+  set -eo pipefail;
+else
+   echo "Warning: you aren't running script in bash - expect problems..."
+ fi
+
+UNAME=$(uname -s | tr 'A-Z' 'a-z')
+
+FONT_CONFIG_CACHE=$(mktemp -d -t font_tmp.XXXXXXXXXX)
+
+if [[ ($UNAME == *darwin*) ]]; then
     FONTS_DIR="/Library/Fonts/"
-    FONT_CONFIG_CACHE=$(mktemp -d -t font_tmp.XXXXXXXXXX)
 else
     FONTS_DIR="/usr/share/fonts/"
-    FONT_CONFIG_CACHE=$(mktemp -d --tmpdir font_tmp.XXXXXXXXXX)
 fi
+
 MAX_PAGES=0
 SAVE_BOX_TIFF=0
 OUTPUT_DIR="/tmp/tesstrain/tessdata"
@@ -32,13 +42,24 @@ RUN_SHAPE_CLUSTERING=0
 EXTRACT_FONT_PROPERTIES=1
 WORKSPACE_DIR=$(mktemp -d)
 
+# set TESSDATA_PREFIX as empty, if not defined in environment to avoid an unbound variable
+TESSDATA_PREFIX=${TESSDATA_PREFIX:-}
+
 # Logging helper functions.
 tlog() {
-    echo -e $* 2>&1 1>&2 | tee -a ${LOG_FILE}
+    if test -z "${LOG_FILE:-}"; then
+        echo -e $*
+    else
+        echo -e $* | tee -a ${LOG_FILE}
+    fi
 }
 
 err_exit() {
-    echo -e "ERROR: "$* 2>&1 1>&2 | tee -a ${LOG_FILE}
+    if test -z "${LOG_FILE:-}"; then
+        echo -e "ERROR: "$*
+    else
+        echo -e "ERROR: "$* | tee -a ${LOG_FILE}
+    fi
     exit 1
 }
 
@@ -82,8 +103,8 @@ check_file_readable() {
 # if it looks like a flag.
 # Usage: parse_value VAR_NAME VALUE
 parse_value() {
-    local val="$2"
-    if [[ -z $val ]]; then
+    local val="${2:-}"
+    if [[ -z "$val" ]]; then
         err_exit "Missing value for variable $1"
         exit
     fi
@@ -124,19 +145,19 @@ parse_flags() {
                 parse_value "EXPOSURES" "$exp"
                 i=$((j-1)) ;;
             --fonts_dir)
-                parse_value "FONTS_DIR" ${ARGV[$j]}
+                parse_value "FONTS_DIR" ${ARGV[$j]:-}
                 i=$j ;;
             --lang)
-                parse_value "LANG_CODE" ${ARGV[$j]}
+                parse_value "LANG_CODE" ${ARGV[$j]:-}
                 i=$j ;;
             --langdata_dir)
-                parse_value "LANGDATA_ROOT" ${ARGV[$j]}
+                parse_value "LANGDATA_ROOT" ${ARGV[$j]:-}
                 i=$j ;;
             --maxpages)
-                parse_value "MAX_PAGES" ${ARGV[$j]}
+                parse_value "MAX_PAGES" ${ARGV[$j]:-}
                 i=$j ;;
             --output_dir)
-                parse_value "OUTPUT_DIR" ${ARGV[$j]}
+                parse_value "OUTPUT_DIR" ${ARGV[$j]:-}
                 i=$j ;;
             --overwrite)
                 OVERWRITE=1 ;;
@@ -149,18 +170,18 @@ parse_flags() {
             --noextract_font_properties)
                 EXTRACT_FONT_PROPERTIES=0 ;;
             --tessdata_dir)
-                parse_value "TESSDATA_DIR" ${ARGV[$j]}
+                parse_value "TESSDATA_DIR" ${ARGV[$j]:-}
                 i=$j ;;
             --training_text)
-                parse_value "TRAINING_TEXT" "${ARGV[$j]}"
+                parse_value "TRAINING_TEXT" "${ARGV[$j]:-}"
                 i=$j ;;
             --wordlist)
-                parse_value "WORDLIST_FILE" ${ARGV[$j]}
+                parse_value "WORDLIST_FILE" ${ARGV[$j]:-}
                 i=$j ;;
             --workspace_dir)
                 rmdir "$FONT_CONFIG_CACHE"
                 rmdir "$WORKSPACE_DIR"
-                parse_value "WORKSPACE_DIR" ${ARGV[$j]}
+                parse_value "WORKSPACE_DIR" ${ARGV[$j]:-}
                 FONT_CONFIG_CACHE=$WORKSPACE_DIR/fc-cache
                 mkdir -p $FONT_CONFIG_CACHE
                 i=$j ;;
@@ -169,13 +190,13 @@ parse_flags() {
         esac
         i=$((i+1))
     done
-    if [[ -z ${LANG_CODE} ]]; then
+    if [[ -z ${LANG_CODE:-} ]]; then
         err_exit "Need to specify a language --lang"
     fi
-    if [[ -z ${LANGDATA_ROOT} ]]; then
+    if [[ -z ${LANGDATA_ROOT:-} ]]; then
         err_exit "Need to specify path to language files --langdata_dir"
     fi
-    if [[ -z ${TESSDATA_DIR} ]]; then
+    if [[ -z ${TESSDATA_DIR:-} ]]; then
         if [[ -z ${TESSDATA_PREFIX} ]]; then
             err_exit "Need to specify a --tessdata_dir or have a "\
         "TESSDATA_PREFIX variable defined in your environment"
@@ -185,20 +206,17 @@ parse_flags() {
     fi
 
     # Location where intermediate files will be created.
-    TIMESTAMP=`date +%Y-%m-%d`
-    TMP_DIR=$(mktemp -d --tmpdir ${LANG_CODE}-${TIMESTAMP}.XXX )
+    TIMESTAMP=$(date +%Y-%m-%d)
+    TMP_DIR=$(mktemp -d -t ${LANG_CODE}-${TIMESTAMP}.XXX)
     TRAINING_DIR=${TMP_DIR}
     # Location of log file for the whole run.
     LOG_FILE=${TRAINING_DIR}/tesstrain.log
 
     # Take training text and wordlist from the langdata directory if not
     # specified in the command-line.
-    if [[ -z ${TRAINING_TEXT} ]]; then
-        TRAINING_TEXT=${LANGDATA_ROOT}/${LANG_CODE}/${LANG_CODE}.training_text
-    fi
-    if [[ -z ${WORDLIST_FILE} ]]; then
-        WORDLIST_FILE=${LANGDATA_ROOT}/${LANG_CODE}/${LANG_CODE}.wordlist
-    fi
+    TRAINING_TEXT=${TRAINING_TEXT:-${LANGDATA_ROOT}/${LANG_CODE}/${LANG_CODE}.training_text}
+    WORDLIST_FILE=${TRAINING_TEXT:-${LANGDATA_ROOT}/${LANG_CODE}/${LANG_CODE}.wordlist}
+
     WORD_BIGRAMS_FILE=${LANGDATA_ROOT}/${LANG_CODE}/${LANG_CODE}.word.bigrams
     NUMBERS_FILE=${LANGDATA_ROOT}/${LANG_CODE}/${LANG_CODE}.numbers
     PUNC_FILE=${LANGDATA_ROOT}/${LANG_CODE}/${LANG_CODE}.punc
@@ -242,7 +260,7 @@ generate_font_image() {
     done
 
     run_command text2image ${common_args} --font="${font}" \
-        --text=${TRAINING_TEXT}  ${TEXT2IMAGE_EXTRA_ARGS}
+        --text=${TRAINING_TEXT}  ${TEXT2IMAGE_EXTRA_ARGS:-}
     check_file_readable ${outbase}.box ${outbase}.tif
 
     if ((EXTRACT_FONT_PROPERTIES)) &&
@@ -257,13 +275,13 @@ generate_font_image() {
 
 # Phase I : Generate (I)mages from training text for each font.
 phase_I_generate_image() {
-    local par_factor=$1
+    local par_factor=${1:-}
     if [[ -z ${par_factor} || ${par_factor} -le 0 ]]; then
         par_factor=1
     fi
     tlog "\n=== Phase I: Generating training images ==="
-    if [[ -z ${TRAINING_TEXT} ]] || [[ ! -r ${TRAINING_TEXT} ]]; then
-        err_exit "Could not find training text file ${TRAINING_TEXT}"
+    if [[ -z ${TRAINING_TEXT:-} ]] || test ! -r "${TRAINING_TEXT}"; then
+        err_exit "Could not find training text file ${TRAINING_TEXT:-}"
     fi
     CHAR_SPACING="0.0"
 
@@ -535,7 +553,7 @@ make__lstmdata() {
     --puncs "${lang_prefix}.punc" \
     --output_dir "${OUTPUT_DIR}" --lang "${LANG_CODE}" \
     "${pass_through}" "${lang_is_rtl}"
-    
+
   if ((SAVE_BOX_TIFF)); then
     tlog "\n=== Saving box/tiff pairs for training data ==="
   for f in "${TRAINING_DIR}/${LANG_CODE}".*.box; do

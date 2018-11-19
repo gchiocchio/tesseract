@@ -1,4 +1,4 @@
-#
+#!/bin/bash
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -603,7 +603,7 @@ BURMESE_FONTS=( \
     "Padauk" \
     "TharLon" \
     )
-	
+
 JAVANESE_FONTS=( \
     "Prada" \
     )
@@ -868,6 +868,8 @@ VERTICAL_FONTS=( \
     "Baekmuk Batang Patched" \ # for kor
     )
 
+FLAGS_webtext_prefix=${FLAGS_webtext_prefix:-}
+
 # Set language-specific values for several global variables, including
 #   ${TEXT_CORPUS}
 #      holds the text corpus file for the language, used in phase F
@@ -907,6 +909,8 @@ set_lang_specific_parameters() {
   # Language to mix with the language for maximum accuracy. Defaults to eng.
   # If no language is good, set to the base language.
   MIX_LANG="eng"
+  EXPOSURES=${EXPOSURES:-}
+  FONTS=${FONTS:-}
 
   case ${lang} in
     # Latin languages.
@@ -1164,9 +1168,9 @@ set_lang_specific_parameters() {
 
     *) err_exit "Error: ${lang} is not a valid language code"
   esac
-  if [[ ${FLAGS_mean_count} -gt 0 ]]; then
+  if [[ ${FLAGS_mean_count:-} -gt 0 ]]; then
     TRAINING_DATA_ARGUMENTS+=" --mean_count=${FLAGS_mean_count}"
-  elif [[ ! -z ${MEAN_COUNT} ]]; then
+  elif [[ ! -z ${MEAN_COUNT:-} ]]; then
     TRAINING_DATA_ARGUMENTS+=" --mean_count=${MEAN_COUNT}"
   fi
   # Default to Latin fonts if none have been set

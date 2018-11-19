@@ -2,7 +2,6 @@
  * File:        tface.cpp  (Formerly tface.c)
  * Description: C side of the Tess/tessedit C/C++ interface.
  * Author:      Ray Smith
- * Created:     Mon Apr 27 11:57:06 BST 1992
  *
  * (C) Copyright 1992, Hewlett-Packard Ltd.
  ** Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,9 +18,7 @@
 
 #include "callcpp.h"
 #include "chop.h"
-#include "chopper.h"
 #include "globals.h"
-#include "gradechop.h"
 #include "pageres.h"
 #include "wordrec.h"
 #include "featdefs.h"

@@ -25,7 +25,7 @@ AM_INIT_AUTOMAKE([foreign subdir-objects])
 # Define date of package, etc. Could be useful in auto-generated
 # documentation.
 PACKAGE_YEAR=2018
-PACKAGE_DATE="03/12"
+PACKAGE_DATE="10/29"
 
 abs_top_srcdir=`AS_DIRNAME([$0])`
 
@@ -88,7 +88,7 @@ case "${host_os}" in
         ;;
     cygwin*)
         AM_CONDITIONAL([ADD_RT], false)
-        AC_SUBST([AM_LDFLAGS], ['-Wl,-no-undefined -Wl,--as-needed'])
+        AC_SUBST([NOUNDEFINED], ['-no-undefined'])
         ;;
     solaris*)
         LIBS="-lsocket -lnsl -lrt -lxnet"
@@ -463,7 +463,6 @@ fi
 
 # Output files
 AC_CONFIG_FILES([Makefile tesseract.pc])
-AC_CONFIG_FILES([langtests/Makefile])
 AC_CONFIG_FILES([src/api/Makefile])
 AC_CONFIG_FILES([src/api/tess_version.h])
 AC_CONFIG_FILES([src/arch/Makefile])
@@ -481,7 +480,6 @@ AC_CONFIG_FILES([src/wordrec/Makefile])
 AC_CONFIG_FILES([tessdata/Makefile])
 AC_CONFIG_FILES([tessdata/configs/Makefile])
 AC_CONFIG_FILES([tessdata/tessconfigs/Makefile])
-AC_CONFIG_FILES([unlvtests/Makefile])
 AC_CONFIG_FILES([unittest/Makefile])
 AC_CONFIG_FILES([java/Makefile])
 AC_CONFIG_FILES([java/com/Makefile])
@@ -500,6 +498,7 @@ echo "You can now build and install $PACKAGE_NAME by running:"
 echo ""
 echo "$ make"
 echo "$ sudo make install"
+echo "$ sudo ldconfig"
 echo ""
 
 AM_COND_IF([ASCIIDOC],

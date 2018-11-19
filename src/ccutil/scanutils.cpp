@@ -36,7 +36,6 @@
 #include <fcntl.h>
 
 #include "scanutils.h"
-#include "tprintf.h"
 
 enum Flags {
   FL_SPLAT  = 0x01,   // Drop the value, do not assign
@@ -75,7 +74,7 @@ inline size_t LongBit() {
 static inline int
 SkipSpace(FILE *s) {
   int p;
-  while (isspace(p = fgetc(s)));
+  while (isascii(p = fgetc(s)) && isspace(p));
   ungetc(p, s);  // Make sure next char is available for reading
   return p;
 }
@@ -108,9 +107,7 @@ static uintmax_t streamtoumax(FILE* s, int base) {
   uintmax_t v = 0;
   int d, c = 0;
 
-  for (c = fgetc(s);
-    isspace(static_cast<unsigned char>(c)) && (c != EOF);
-    c = fgetc(s)) {}
+  for (c = fgetc(s); isascii(c) && isspace(c); c = fgetc(s));
 
   // Single optional + or -
   if (c == '-' || c == '+') {
@@ -145,15 +142,13 @@ static uintmax_t streamtoumax(FILE* s, int base) {
 }
 
 static double streamtofloat(FILE* s) {
-  int minus = 0;
-  int v = 0;
-  int d, c = 0;
-  int k = 1;
-  int w = 0;
+  bool minus = false;
+  uint64_t v = 0;
+  int d, c;
+  uint64_t k = 1;
+  uint64_t w = 0;
 
-  for (c = fgetc(s);
-    isspace(static_cast<unsigned char>(c)) && (c != EOF);
-    c = fgetc(s));
+  for (c = fgetc(s); isascii(c) && isspace(c); c = fgetc(s));
 
   // Single optional + or -
   if (c == '-' || c == '+') {
@@ -170,8 +165,7 @@ static double streamtofloat(FILE* s) {
       k *= 10;
     }
   }
-  double f  = static_cast<double>(v)
-            + static_cast<double>(w) / static_cast<double>(k);
+  double f = v + static_cast<double>(w) / k;
   if (c == 'e' || c == 'E') {
     c = fgetc(s);
     int expsign = 1;
@@ -265,7 +259,7 @@ static int tvfscanf(FILE* stream, const char *format, va_list ap) {
         if (ch == '%') {
           state = ST_FLAGS;
           flags = 0; rank = RANK_INT; width = UINT_MAX;
-        } else if (isspace(static_cast<unsigned char>(ch))) {
+        } else if (isascii(ch) && isspace(ch)) {
           SkipSpace(stream);
         } else {
           if (fgetc(stream) != ch)
@@ -360,7 +354,7 @@ static int tvfscanf(FILE* stream, const char *format, va_list ap) {
 
             scan_int:
               q = SkipSpace(stream);
-              if ( q <= 0 ) {
+              if (q <= 0) {
                 bail = BAIL_EOF;
                 break;
               }
@@ -445,7 +439,7 @@ static int tvfscanf(FILE* stream, const char *format, va_list ap) {
               unsigned length = 0;
               while (width--) {
                 q = fgetc(stream);
-                if (isspace(static_cast<unsigned char>(q)) || q <= 0) {
+                if ((isascii(q) && isspace(q)) || (q <= 0)) {
                   ungetc(q, stream);
                   break;
                 }
@@ -471,7 +465,7 @@ static int tvfscanf(FILE* stream, const char *format, va_list ap) {
             break;
 
             case '%':   // %% sequence
-              if (fgetc(stream) != '%' )
+              if (fgetc(stream) != '%')
                 bail = BAIL_ERR;
             break;
 
