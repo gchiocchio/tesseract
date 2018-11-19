@@ -1159,6 +1159,7 @@ void WERD_RES::ClearResults() {
   delete bln_boxes;
   bln_boxes = nullptr;
   blob_row = nullptr;
+  if (chopped_word != nullptr) chopped_word->Clear();
   delete chopped_word;
   chopped_word = nullptr;
   delete rebuild_word;

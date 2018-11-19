@@ -34,7 +34,7 @@ const float kMinProb = exp(kMinCertainty);
 // Holds the optimal integer multiplier for this machine.
 // This is a leaked, lazily initialized singleton, and is used for computing
 // padding to apply to i_ for SIMD use.
-IntSimdMatrix* NetworkIO::multiplier_ = nullptr;
+std::unique_ptr<IntSimdMatrix> NetworkIO::multiplier_ = nullptr;
 
 // Resizes to a specific size as a 2-d temp buffer. No batches, no y-dim.
 void NetworkIO::Resize2d(bool int_mode, int width, int num_features) {
@@ -986,7 +986,7 @@ void NetworkIO::ClipVector(int t, float range) {
 /* static */
 int NetworkIO::GetPadding(int num_features) {
   if (multiplier_ == nullptr)
-    multiplier_ = IntSimdMatrix::GetFastestMultiplier();
+    multiplier_.reset(IntSimdMatrix::GetFastestMultiplier());
   int pad = 0;
   if (multiplier_ != nullptr) {
     pad = multiplier_->RoundInputs(num_features) - num_features;
